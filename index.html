@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>T.I.M.O</title>
+  <title>V.I.P.E.R Timesheet</title>
 
   <style>
     :root {
@@ -389,12 +389,54 @@
       margin-top: 18px;
     }
 
+    .individual-layout {
+      display: grid;
+      grid-template-columns: minmax(240px, 0.8fr) 1.2fr;
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .user-profile, .activity-breakdown {
+      background: linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,251,255,0.92));
+      border: 1px solid rgba(197, 214, 238, 0.55);
+      box-shadow: var(--shadow-md);
+      border-radius: 22px;
+      padding: 18px;
+    }
+
+    .profile-title {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .profile-row, .breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      border-top: 1px solid rgba(224, 234, 247, 0.9);
+      padding-top: 11px;
+      margin-top: 11px;
+      font-size: 14px;
+    }
+
+    .profile-label, .breakdown-label {
+      color: var(--text-soft);
+      font-weight: 700;
+    }
+
+    .profile-value, .breakdown-value {
+      font-weight: 800;
+      text-align: right;
+    }
+
     .hidden { display: none !important; }
 
     @media (max-width: 1180px) {
       .form-grid, .summary-grid { grid-template-columns: repeat(2, 1fr); }
       .form-grid .wide { grid-column: 1 / -1; }
       .toolbar { grid-template-columns: 1fr 1fr; }
+      .individual-layout { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 700px) {
@@ -418,8 +460,8 @@
       <div class="brand">
         <img src="https://raw.githubusercontent.com/invinciblescotax-rex/client-tracker-tool/main/whiper.jpg" class="brand-mark" alt="V.I.P.E.R logo" />
         <div class="brand-text">
-          <span class="logo">TIMO</span>
-          <span class="logo-sub">Tracking, Insights, Management & Optimization</span>
+          <span class="logo">V.I.P.E.R</span>
+          <span class="logo-sub">Timesheet Activity Records</span>
         </div>
       </div>
 
@@ -546,6 +588,18 @@
             </div>
           </div>
 
+          <div class="section-head" style="margin-top:22px;">
+            <div class="section-head-left">
+              <h2>Individual User Data</h2>
+              <div class="subtle">Select a user to see that person's totals, activity split, latest submission, and full related timesheet data.</div>
+            </div>
+            <select id="userSelect" onchange="renderIndividualUser()" style="max-width:360px;">
+              <option value="">Select User</option>
+            </select>
+          </div>
+
+          <div id="individualUserPanel"></div>
+
           <div id="adminTimesheetList"></div>
         </div>
       </div>
@@ -592,6 +646,8 @@
     const navRole = document.getElementById("navRole");
     const navLogout = document.getElementById("navLogout");
     const searchInput = document.getElementById("search");
+    const userSelect = document.getElementById("userSelect");
+    const individualUserPanel = document.getElementById("individualUserPanel");
 
     const SKS_REPORT_TEXT = "Report to Thanmayi or, Tanooj regarding this period";
     let currentUserEmail = "";
@@ -599,6 +655,7 @@
     let currentRole = "";
     let allTimesheets = [];
     let displayedTimesheets = [];
+    let selectedUserEmail = "";
     let unsubscribeTimesheets = null;
 
     function setLoginStatus(message = "", type = "") {
@@ -616,22 +673,28 @@
       loginBtn.textContent = isLoading ? "Signing In..." : "Login";
     }
 
-    function getISTDateObject() {
-      return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-    }
-
-    function toISODate(date) {
-      return date.toISOString().slice(0, 10);
+    function getISODateInIST(date = new Date()) {
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).formatToParts(date);
+      const lookup = Object.fromEntries(parts.map(part => [part.type, part.value]));
+      return `${lookup.year}-${lookup.month}-${lookup.day}`;
     }
 
     function getTodayISOFromIST() {
-      return toISODate(getISTDateObject());
+      return getISODateInIST();
     }
 
     function getMinEntryDate() {
-      const date = getISTDateObject();
+      const date = new Date(`${getTodayISOFromIST()}T00:00:00`);
       date.setDate(date.getDate() - 2);
-      return toISODate(date);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
     }
 
     function getISTTime() {
@@ -709,14 +772,14 @@
       }
     };
 
-    window.resetTimesheetForm = () => {
+    window.resetTimesheetForm = (keepStatus = false) => {
       setDateLimits();
       document.getElementById("startTime").value = "";
       document.getElementById("endTime").value = "";
       document.getElementById("activityType").value = "";
       document.getElementById("activityReport").value = "";
       document.getElementById("activityReport").disabled = false;
-      setEntryStatus("");
+      if (!keepStatus) setEntryStatus("");
     };
 
     function validateTimesheet() {
@@ -770,7 +833,7 @@
         document.getElementById("submitBtn").disabled = true;
         await setDoc(doc(db, "timesheets", id), payload);
         setEntryStatus("Timesheet submitted successfully.", "success");
-        resetTimesheetForm();
+        resetTimesheetForm(true);
       } catch (error) {
         setEntryStatus(error.message || "Unable to submit timesheet.", "error");
       } finally {
@@ -778,13 +841,12 @@
       }
     };
 
-    function renderTable(targetId, data, includeUser) {
+    function buildTableHtml(data, includeUser) {
       if (!data.length) {
-        document.getElementById(targetId).innerHTML = `<div class="empty-state">No timesheet records found.</div>`;
-        return;
+        return `<div class="empty-state">No timesheet records found.</div>`;
       }
 
-      document.getElementById(targetId).innerHTML = `
+      return `
         <div class="list-table-wrap">
           <table class="list-table">
             <thead>
@@ -818,6 +880,10 @@
       `;
     }
 
+    function renderTable(targetId, data, includeUser) {
+      document.getElementById(targetId).innerHTML = buildTableHtml(data, includeUser);
+    }
+
     function updateAdminSummary(data) {
       const totalMinutes = data.reduce((sum, row) => sum + (Number(row.durationMinutes) || 0), 0);
       const users = new Set(data.map(row => row.userEmail).filter(Boolean));
@@ -829,6 +895,131 @@
       document.getElementById("sumSks").textContent = sksEntries;
       document.getElementById("adminCountChip").textContent = `${data.length} Records`;
     }
+
+    function getUserSummaries() {
+      const summaries = new Map();
+
+      allTimesheets.forEach(row => {
+        const email = row.userEmail || "";
+        if (!email) return;
+
+        if (!summaries.has(email)) {
+          summaries.set(email, {
+            email,
+            name: row.userName || email,
+            entries: 0,
+            minutes: 0,
+            latestKey: ""
+          });
+        }
+
+        const summary = summaries.get(email);
+        summary.name = row.userName || summary.name;
+        summary.entries += 1;
+        summary.minutes += Number(row.durationMinutes) || 0;
+        const key = `${row.date || ""} ${row.startTime || ""}`;
+        if (key > summary.latestKey) summary.latestKey = key;
+      });
+
+      return Array.from(summaries.values())
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    function updateUserSelect() {
+      if (!userSelect) return;
+
+      const users = getUserSummaries();
+      const currentValue = selectedUserEmail || userSelect.value;
+      userSelect.innerHTML = `<option value="">Select User</option>` + users.map(user => `
+        <option value="${escapeHtml(user.email)}">
+          ${escapeHtml(user.name)} (${escapeHtml(user.email)}) - ${user.entries} entries
+        </option>
+      `).join("");
+
+      if (users.some(user => user.email === currentValue)) {
+        userSelect.value = currentValue;
+        selectedUserEmail = currentValue;
+      } else {
+        userSelect.value = "";
+        selectedUserEmail = "";
+      }
+    }
+
+    function getActivityStats(rows) {
+      return ["SKS Work", "InvinciblesCo Work", "Lunch or, snacks", "Idle time"].map(activity => {
+        const activityRows = rows.filter(row => row.activity === activity);
+        const minutes = activityRows.reduce((sum, row) => sum + (Number(row.durationMinutes) || 0), 0);
+        return { activity, count: activityRows.length, minutes };
+      });
+    }
+
+    window.renderIndividualUser = () => {
+      if (!isAdmin() || !individualUserPanel) return;
+
+      selectedUserEmail = userSelect.value;
+
+      if (!selectedUserEmail) {
+        individualUserPanel.innerHTML = `<div class="empty-state">Select a user above to view individual related timesheet data.</div>`;
+        return;
+      }
+
+      const rows = applySort(allTimesheets.filter(row => row.userEmail === selectedUserEmail));
+      const totalMinutes = rows.reduce((sum, row) => sum + (Number(row.durationMinutes) || 0), 0);
+      const firstRow = rows[0] || {};
+      const latest = [...rows].sort((a, b) =>
+        `${b.date || ""} ${b.startTime || ""}`.localeCompare(`${a.date || ""} ${a.startTime || ""}`)
+      )[0] || {};
+      const dates = new Set(rows.map(row => row.date).filter(Boolean));
+      const activityStats = getActivityStats(rows);
+
+      individualUserPanel.innerHTML = `
+        <div class="individual-layout">
+          <div class="user-profile">
+            <div class="profile-title">${escapeHtml(firstRow.userName || selectedUserEmail)}</div>
+            <div class="subtle">${escapeHtml(selectedUserEmail)}</div>
+            <div class="profile-row">
+              <span class="profile-label">Total Entries</span>
+              <span class="profile-value">${rows.length}</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-label">Total Hours</span>
+              <span class="profile-value">${(totalMinutes / 60).toFixed(2)}</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-label">Active Dates</span>
+              <span class="profile-value">${dates.size}</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-label">Latest Date</span>
+              <span class="profile-value">${escapeHtml(latest.date || "-")}</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-label">Latest Time</span>
+              <span class="profile-value">${escapeHtml(latest.startTime || "-")} - ${escapeHtml(latest.endTime || "-")}</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-label">Latest Activity</span>
+              <span class="profile-value">${escapeHtml(latest.activity || "-")}</span>
+            </div>
+          </div>
+
+          <div class="activity-breakdown">
+            <div class="profile-title">Activity Breakdown</div>
+            <div class="subtle">Counts and time spent for the selected user.</div>
+            ${activityStats.map(item => `
+              <div class="breakdown-row">
+                <span class="breakdown-label">${activityBadge(item.activity)}</span>
+                <span class="breakdown-value">${item.count} entries / ${formatDuration(item.minutes)}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          ${buildTableHtml(rows, false)}
+        </div>
+      `;
+    };
 
     function applySort(data) {
       const sortBy = document.getElementById("sortBy")?.value || "latest";
@@ -878,6 +1069,8 @@
       data = applySort(data);
       displayedTimesheets = data;
       updateAdminSummary(data);
+      updateUserSelect();
+      renderIndividualUser();
       renderTable("adminTimesheetList", data, true);
     };
 
@@ -979,6 +1172,7 @@
           currentRole = "";
           allTimesheets = [];
           displayedTimesheets = [];
+          selectedUserEmail = "";
 
           if (unsubscribeTimesheets) unsubscribeTimesheets();
           unsubscribeTimesheets = null;

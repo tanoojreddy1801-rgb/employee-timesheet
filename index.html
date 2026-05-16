@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>V.I.P.E.R Timesheet</title>
+
+  <style>
+    :root {
+      --bg-1: #f8fbff;
+      --bg-2: #eef5ff;
+      --bg-3: #f9fcff;
+      --surface: rgba(255, 255, 255, 0.82);
+      --text: #24324a;
+      --text-soft: #60708d;
+      --line: rgba(186, 205, 232, 0.45);
+      --primary: #5b8def;
+      --primary-2: #7fb3ff;
+      --teal: #57c6c2;
+      --shadow-lg: 0 24px 60px rgba(115, 149, 199, 0.18);
+      --shadow-md: 0 14px 34px rgba(122, 152, 199, 0.14);
+      --shadow-sm: 0 8px 20px rgba(122, 152, 199, 0.1);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 0% 0%, rgba(168, 202, 255, 0.26), transparent 28%),
+        radial-gradient(circle at 100% 10%, rgba(126, 215, 193, 0.22), transparent 24%),
+        radial-gradient(circle at 70% 100%, rgba(246, 183, 200, 0.18), transparent 24%),
+        linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 52%, var(--bg-3) 100%);
+      overflow-x: hidden;
+    }
+
+    .app-shell { position: relative; z-index: 1; }
+
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 25;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 26px;
+      background: rgba(255, 255, 255, 0.68);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(201, 216, 238, 0.45);
+      box-shadow: 0 8px 24px rgba(141, 169, 207, 0.08);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-mark {
+      width: 46px;
+      height: 60px;
+      object-fit: contain;
+    }
+
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .logo {
+      font-size: 26px;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      background: linear-gradient(90deg, #4d7fe5, #61b7d5, #4d7fe5);
+      background-size: 200% auto;
+      color: transparent;
+      background-clip: text;
+      -webkit-background-clip: text;
+      animation: shimmer 5s linear infinite;
+    }
+
+    .logo-sub {
+      color: var(--text-soft);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .nav-pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(197, 214, 238, 0.5);
+      color: var(--text-soft);
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .nav-btn {
+      height: 42px;
+      padding: 0 16px;
+      border: 1px solid rgba(192, 211, 236, 0.62);
+      border-radius: 14px;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      color: var(--text);
+      background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(242,247,255,0.92));
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 0% center; }
+      100% { background-position: 200% center; }
+    }
+
+    .container {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 28px 22px 40px;
+    }
+
+    .panel {
+      position: relative;
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow-lg);
+      padding: 26px;
+      margin-bottom: 22px;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto auto 0;
+      width: 100%;
+      height: 6px;
+      background: linear-gradient(90deg, rgba(91,141,239,0.85), rgba(87,198,194,0.75), rgba(246,183,200,0.7));
+      border-top-left-radius: 28px;
+      border-top-right-radius: 28px;
+    }
+
+    .hero-login {
+      max-width: 520px;
+      margin: 50px auto 0;
+      padding-top: 34px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .section-head-left {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    h1, h2 { margin: 0; }
+    h1 { font-size: 30px; font-weight: 800; }
+    h2 { font-size: 24px; font-weight: 800; }
+
+    .subtle {
+      color: var(--text-soft);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.88), rgba(246,250,255,0.75));
+      border: 1px solid rgba(197, 214, 238, 0.55);
+      color: #5f7396;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: var(--shadow-sm);
+      white-space: nowrap;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .form-grid .wide { grid-column: span 2; }
+    .form-grid .full { grid-column: 1 / -1; }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1.4fr repeat(3, minmax(150px, 0.7fr)) auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    input, select, textarea, button { font: inherit; }
+
+    input, select, textarea {
+      width: 100%;
+      min-height: 48px;
+      border: 1px solid rgba(190, 208, 233, 0.62);
+      background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,251,255,0.92));
+      border-radius: 16px;
+      padding: 0 14px;
+      color: var(--text);
+      outline: none;
+      transition: 0.22s ease;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.78);
+    }
+
+    textarea {
+      min-height: 92px;
+      resize: vertical;
+      padding: 13px 14px;
+      line-height: 1.45;
+    }
+
+    input:disabled, textarea:disabled {
+      color: #7d899b;
+      background: linear-gradient(180deg, rgba(236,242,250,0.95), rgba(228,236,247,0.92));
+      cursor: not-allowed;
+    }
+
+    button {
+      height: 46px;
+      padding: 0 16px;
+      border: none;
+      border-radius: 15px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
+      box-shadow: var(--shadow-sm);
+      white-space: nowrap;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px rgba(122, 152, 199, 0.18);
+      filter: brightness(1.02);
+    }
+
+    button:active { transform: translateY(0); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .btn-primary {
+      color: #fff;
+      background: linear-gradient(135deg, #5b8def, #78adff);
+    }
+
+    .btn-secondary {
+      color: var(--text);
+      background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(242,247,255,0.92));
+      border: 1px solid rgba(192, 211, 236, 0.62);
+    }
+
+    .btn-export {
+      color: #fff;
+      background: linear-gradient(135deg, #8c7cf0, #ad8fff);
+    }
+
+    .action-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 14px;
+    }
+
+    .status-message {
+      margin-top: 12px;
+      min-height: 20px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .status-message.error { color: #c45d73; }
+    .status-message.success { color: #2f8d6a; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .summary-card, .list-table-wrap, .empty-state {
+      background: linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,251,255,0.92));
+      border: 1px solid rgba(197, 214, 238, 0.55);
+      box-shadow: var(--shadow-md);
+    }
+
+    .summary-card {
+      border-radius: 22px;
+      padding: 18px;
+    }
+
+    .summary-label {
+      color: var(--text-soft);
+      font-size: 13px;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+
+    .summary-value {
+      font-size: 30px;
+      font-weight: 800;
+    }
+
+    .summary-note {
+      margin-top: 6px;
+      color: #8392aa;
+      font-size: 12px;
+    }
+
+    .list-table-wrap {
+      overflow-x: auto;
+      border-radius: 24px;
+      margin-top: 16px;
+    }
+
+    .list-table {
+      width: 100%;
+      min-width: 1100px;
+      border-collapse: collapse;
+    }
+
+    .list-table th, .list-table td {
+      padding: 14px;
+      border-bottom: 1px solid rgba(224, 234, 247, 0.9);
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    .list-table th {
+      color: #536888;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+      background: #e9f2ff;
+      color: #4674c7;
+    }
+
+    .badge.sks { background: #e7f9f1; color: #2f9970; }
+    .badge.invincibles { background: #f1ebff; color: #7d58c5; }
+    .badge.break { background: #fff3dc; color: #b27a14; }
+    .badge.idle { background: #fff0f3; color: #c06b87; }
+
+    .empty-state {
+      padding: 34px 18px;
+      text-align: center;
+      border-radius: 24px;
+      font-weight: 600;
+      margin-top: 18px;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 1180px) {
+      .form-grid, .summary-grid { grid-template-columns: repeat(2, 1fr); }
+      .form-grid .wide { grid-column: 1 / -1; }
+      .toolbar { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 700px) {
+      .container { padding: 16px 14px 28px; }
+      .navbar { padding: 14px; align-items: flex-start; flex-direction: column; }
+      .form-grid, .summary-grid, .toolbar { grid-template-columns: 1fr; }
+      .panel { padding: 18px; border-radius: 22px; }
+      .section-head { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+</head>
+
+<body>
+  <div class="app-shell">
+    <div class="navbar">
+      <div class="brand">
+        <img src="https://raw.githubusercontent.com/invinciblescotax-rex/client-tracker-tool/main/whiper.jpg" class="brand-mark" alt="V.I.P.E.R logo" />
+        <div class="brand-text">
+          <span class="logo">V.I.P.E.R</span>
+          <span class="logo-sub">Timesheet Activity Records</span>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <div id="navUser" class="nav-pill hidden"></div>
+        <div id="navRole" class="nav-pill hidden"></div>
+        <button id="navLogout" class="nav-btn hidden" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <div class="container">
+      <div id="loginDiv" class="panel hero-login">
+        <div class="section-head">
+          <div class="section-head-left">
+            <h1>Hello Team. Greetings of the day!!!</h1>
+            <div class="subtle">Login as a user to submit timesheets, or as admin to review all user activity.</div>
+          </div>
+          <div class="chip">Secure Login</div>
+        </div>
+
+        <input id="loginEmail" type="email" placeholder="Email" autocomplete="username" />
+        <br /><br />
+        <input id="loginPass" type="password" placeholder="Password" autocomplete="current-password" />
+        <br /><br />
+        <button id="loginBtn" class="btn-primary" onclick="login()">Login</button>
+        <div id="loginStatus" class="status-message"></div>
+      </div>
+
+      <div id="appDiv" class="hidden">
+        <div id="userPanel" class="panel hidden">
+          <div class="section-head">
+            <div class="section-head-left">
+              <h2>Timesheet Entry</h2>
+              <div class="subtle">Date defaults to today. You can edit it only up to two previous days and never beyond today.</div>
+            </div>
+            <div class="chip" id="dateRuleChip">Current Day Entry</div>
+          </div>
+
+          <div class="form-grid" style="margin-top:14px;">
+            <input id="entryDate" type="date" required />
+            <input id="startTime" type="time" required />
+            <input id="endTime" type="time" required />
+            <select id="activityType" required onchange="handleActivityChange()">
+              <option value="">Select Activity</option>
+              <option>SKS Work</option>
+              <option>InvinciblesCo Work</option>
+              <option>Lunch or, snacks</option>
+              <option>Idle time</option>
+            </select>
+            <textarea id="activityReport" class="full" placeholder="Report the work or activity for this period" required></textarea>
+          </div>
+
+          <div class="action-row">
+            <button id="submitBtn" class="btn-primary" onclick="submitTimesheet()">Submit Timesheet</button>
+            <button class="btn-secondary" onclick="resetTimesheetForm()">Reset</button>
+          </div>
+          <div id="entryStatus" class="status-message"></div>
+        </div>
+
+        <div id="historyPanel" class="panel hidden">
+          <div class="section-head">
+            <div class="section-head-left">
+              <h2>My Activity History</h2>
+              <div class="subtle">Your submitted timesheet records appear here immediately after saving.</div>
+            </div>
+            <div class="chip" id="myCountChip">0 Entries</div>
+          </div>
+          <div id="myTimesheetList"></div>
+        </div>
+
+        <div id="adminPanel" class="panel hidden">
+          <div class="section-head">
+            <div class="section-head-left">
+              <h2>Admin Timesheet Dashboard</h2>
+              <div class="subtle">Review user-wise activity, time periods, dates, work type, and submitted reports.</div>
+            </div>
+            <div class="chip" id="adminCountChip">0 Records</div>
+          </div>
+
+          <div class="toolbar">
+            <input id="search" placeholder="Search by user, email, activity, report..." />
+            <input id="filterDate" type="date" onchange="applyFiltersAndRender()" />
+            <select id="filterActivity" onchange="applyFiltersAndRender()">
+              <option value="">All Activities</option>
+              <option>SKS Work</option>
+              <option>InvinciblesCo Work</option>
+              <option>Lunch or, snacks</option>
+              <option>Idle time</option>
+            </select>
+            <select id="sortBy" onchange="applyFiltersAndRender()">
+              <option value="latest">Sort: Latest</option>
+              <option value="oldest">Sort: Oldest</option>
+              <option value="user">Sort: User A-Z</option>
+              <option value="duration">Sort: Longest Duration</option>
+            </select>
+            <button class="btn-secondary" onclick="clearFilters()">Clear</button>
+          </div>
+
+          <div class="action-row">
+            <button class="btn-export" onclick="exportExcel()">Excel</button>
+            <button class="btn-export" onclick="exportPDF()">PDF</button>
+          </div>
+
+          <div class="summary-grid">
+            <div class="summary-card">
+              <div class="summary-label">Visible Records</div>
+              <div id="sumTotal" class="summary-value">0</div>
+              <div class="summary-note">After filters</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Total Hours</div>
+              <div id="sumHours" class="summary-value">0.00</div>
+              <div class="summary-note">Visible duration</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Users</div>
+              <div id="sumUsers" class="summary-value">0</div>
+              <div class="summary-note">Distinct submitters</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">SKS Entries</div>
+              <div id="sumSks" class="summary-value">0</div>
+              <div class="summary-note">Report-to-office periods</div>
+            </div>
+          </div>
+
+          <div id="adminTimesheetList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    emailjs.init("oCSNm-4jMM9RJpB35");
+  </script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      getDoc,
+      setDoc,
+      onSnapshot,
+      collection,
+      query,
+      where
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCsxAw40sFLw00PtEas3cvzRMEjkDZ9NJE",
+      authDomain: "client-tracker-tool-5bdf6.firebaseapp.com",
+      projectId: "client-tracker-tool-5bdf6"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const loginDiv = document.getElementById("loginDiv");
+    const appDiv = document.getElementById("appDiv");
+    const userPanel = document.getElementById("userPanel");
+    const historyPanel = document.getElementById("historyPanel");
+    const adminPanel = document.getElementById("adminPanel");
+    const loginBtn = document.getElementById("loginBtn");
+    const loginStatus = document.getElementById("loginStatus");
+    const entryStatus = document.getElementById("entryStatus");
+    const navUser = document.getElementById("navUser");
+    const navRole = document.getElementById("navRole");
+    const navLogout = document.getElementById("navLogout");
+    const searchInput = document.getElementById("search");
+
+    const SKS_REPORT_TEXT = "Report to Thanmayi or, Tanooj regarding this period";
+    let currentUserEmail = "";
+    let currentUserName = "";
+    let currentRole = "";
+    let allTimesheets = [];
+    let displayedTimesheets = [];
+    let unsubscribeTimesheets = null;
+
+    function setLoginStatus(message = "", type = "") {
+      loginStatus.textContent = message;
+      loginStatus.className = "status-message" + (type ? ` ${type}` : "");
+    }
+
+    function setEntryStatus(message = "", type = "") {
+      entryStatus.textContent = message;
+      entryStatus.className = "status-message" + (type ? ` ${type}` : "");
+    }
+
+    function setLoginLoading(isLoading) {
+      loginBtn.disabled = isLoading;
+      loginBtn.textContent = isLoading ? "Signing In..." : "Login";
+    }
+
+    function getISTDateObject() {
+      return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    }
+
+    function toISODate(date) {
+      return date.toISOString().slice(0, 10);
+    }
+
+    function getTodayISOFromIST() {
+      return toISODate(getISTDateObject());
+    }
+
+    function getMinEntryDate() {
+      const date = getISTDateObject();
+      date.setDate(date.getDate() - 2);
+      return toISODate(date);
+    }
+
+    function getISTTime() {
+      return new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function isAdmin() {
+      return currentRole === "admin";
+    }
+
+    function getInputValue(id) {
+      return document.getElementById(id).value.trim();
+    }
+
+    function getDurationMinutes(date, startTime, endTime) {
+      const start = new Date(`${date}T${startTime}:00`);
+      const end = new Date(`${date}T${endTime}:00`);
+      return Math.round((end - start) / 60000);
+    }
+
+    function formatDuration(minutes = 0) {
+      const safeMinutes = Math.max(0, Number(minutes) || 0);
+      const hours = Math.floor(safeMinutes / 60);
+      const mins = safeMinutes % 60;
+      return `${hours}h ${String(mins).padStart(2, "0")}m`;
+    }
+
+    function getActivityClass(activity) {
+      if (activity === "SKS Work") return "sks";
+      if (activity === "InvinciblesCo Work") return "invincibles";
+      if (activity === "Lunch or, snacks") return "break";
+      if (activity === "Idle time") return "idle";
+      return "";
+    }
+
+    function activityBadge(activity) {
+      return `<span class="badge ${getActivityClass(activity)}">${escapeHtml(activity || "-")}</span>`;
+    }
+
+    async function getRoleByEmail(email) {
+      const ref = doc(db, "roles", email.toLowerCase());
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return null;
+      return snap.data();
+    }
+
+    function setDateLimits() {
+      const dateInput = document.getElementById("entryDate");
+      dateInput.min = getMinEntryDate();
+      dateInput.max = getTodayISOFromIST();
+      dateInput.value = getTodayISOFromIST();
+      document.getElementById("dateRuleChip").textContent = `${dateInput.min} to ${dateInput.max}`;
+    }
+
+    window.handleActivityChange = () => {
+      const activity = document.getElementById("activityType").value;
+      const report = document.getElementById("activityReport");
+
+      if (activity === "SKS Work") {
+        report.value = SKS_REPORT_TEXT;
+        report.disabled = true;
+      } else {
+        if (report.value === SKS_REPORT_TEXT) report.value = "";
+        report.disabled = false;
+        report.placeholder = "Report the work or activity for this period";
+      }
+    };
+
+    window.resetTimesheetForm = () => {
+      setDateLimits();
+      document.getElementById("startTime").value = "";
+      document.getElementById("endTime").value = "";
+      document.getElementById("activityType").value = "";
+      document.getElementById("activityReport").value = "";
+      document.getElementById("activityReport").disabled = false;
+      setEntryStatus("");
+    };
+
+    function validateTimesheet() {
+      const date = getInputValue("entryDate");
+      const startTime = getInputValue("startTime");
+      const endTime = getInputValue("endTime");
+      const activity = document.getElementById("activityType").value;
+      const report = getInputValue("activityReport");
+
+      if (!date || !startTime || !endTime || !activity || !report) {
+        setEntryStatus("Please fill every field before submitting.", "error");
+        return null;
+      }
+
+      if (date < getMinEntryDate() || date > getTodayISOFromIST()) {
+        setEntryStatus("Date can be today or up to two previous days only.", "error");
+        return null;
+      }
+
+      const durationMinutes = getDurationMinutes(date, startTime, endTime);
+      if (durationMinutes <= 0) {
+        setEntryStatus("End time must be after start time for the selected date.", "error");
+        return null;
+      }
+
+      return { date, startTime, endTime, activity, report, durationMinutes };
+    }
+
+    window.submitTimesheet = async () => {
+      const data = validateTimesheet();
+      if (!data) return;
+
+      const id = `${currentUserEmail}_${data.date}_${data.startTime}_${Date.now()}`
+        .replace(/[^a-zA-Z0-9_-]/g, "_");
+
+      const payload = {
+        id,
+        userEmail: currentUserEmail,
+        userName: currentUserName || currentUserEmail,
+        date: data.date,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        durationMinutes: data.durationMinutes,
+        activity: data.activity,
+        report: data.activity === "SKS Work" ? SKS_REPORT_TEXT : data.report,
+        submittedAt: getISTTime(),
+        submittedAtISO: getTodayISOFromIST()
+      };
+
+      try {
+        document.getElementById("submitBtn").disabled = true;
+        await setDoc(doc(db, "timesheets", id), payload);
+        setEntryStatus("Timesheet submitted successfully.", "success");
+        resetTimesheetForm();
+      } catch (error) {
+        setEntryStatus(error.message || "Unable to submit timesheet.", "error");
+      } finally {
+        document.getElementById("submitBtn").disabled = false;
+      }
+    };
+
+    function renderTable(targetId, data, includeUser) {
+      if (!data.length) {
+        document.getElementById(targetId).innerHTML = `<div class="empty-state">No timesheet records found.</div>`;
+        return;
+      }
+
+      document.getElementById(targetId).innerHTML = `
+        <div class="list-table-wrap">
+          <table class="list-table">
+            <thead>
+              <tr>
+                ${includeUser ? "<th>User</th><th>Email</th>" : ""}
+                <th>Date</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Duration</th>
+                <th>Activity</th>
+                <th>Report</th>
+                <th>Submitted At</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.map(row => `
+                <tr>
+                  ${includeUser ? `<td>${escapeHtml(row.userName || "-")}</td><td>${escapeHtml(row.userEmail || "-")}</td>` : ""}
+                  <td>${escapeHtml(row.date || "-")}</td>
+                  <td>${escapeHtml(row.startTime || "-")}</td>
+                  <td>${escapeHtml(row.endTime || "-")}</td>
+                  <td>${escapeHtml(formatDuration(row.durationMinutes))}</td>
+                  <td>${activityBadge(row.activity)}</td>
+                  <td>${escapeHtml(row.report || "-")}</td>
+                  <td>${escapeHtml(row.submittedAt || "-")}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function updateAdminSummary(data) {
+      const totalMinutes = data.reduce((sum, row) => sum + (Number(row.durationMinutes) || 0), 0);
+      const users = new Set(data.map(row => row.userEmail).filter(Boolean));
+      const sksEntries = data.filter(row => row.activity === "SKS Work").length;
+
+      document.getElementById("sumTotal").textContent = data.length;
+      document.getElementById("sumHours").textContent = (totalMinutes / 60).toFixed(2);
+      document.getElementById("sumUsers").textContent = users.size;
+      document.getElementById("sumSks").textContent = sksEntries;
+      document.getElementById("adminCountChip").textContent = `${data.length} Records`;
+    }
+
+    function applySort(data) {
+      const sortBy = document.getElementById("sortBy")?.value || "latest";
+      const sorted = [...data];
+
+      if (sortBy === "oldest") {
+        sorted.sort((a, b) => `${a.date || ""} ${a.startTime || ""}`.localeCompare(`${b.date || ""} ${b.startTime || ""}`));
+      } else if (sortBy === "user") {
+        sorted.sort((a, b) => (a.userName || a.userEmail || "").localeCompare(b.userName || b.userEmail || ""));
+      } else if (sortBy === "duration") {
+        sorted.sort((a, b) => (Number(b.durationMinutes) || 0) - (Number(a.durationMinutes) || 0));
+      } else {
+        sorted.sort((a, b) => `${b.date || ""} ${b.startTime || ""}`.localeCompare(`${a.date || ""} ${a.startTime || ""}`));
+      }
+
+      return sorted;
+    }
+
+    window.applyFiltersAndRender = () => {
+      if (!isAdmin()) {
+        const mine = applySort(allTimesheets);
+        document.getElementById("myCountChip").textContent = `${mine.length} Entries`;
+        renderTable("myTimesheetList", mine, false);
+        return;
+      }
+
+      const q = searchInput.value.toLowerCase().trim();
+      const filterDate = document.getElementById("filterDate").value;
+      const filterActivity = document.getElementById("filterActivity").value;
+
+      let data = allTimesheets.filter(row => {
+        const haystack = [
+          row.userName,
+          row.userEmail,
+          row.activity,
+          row.report,
+          row.date,
+          row.startTime,
+          row.endTime
+        ].join(" ").toLowerCase();
+
+        return (!q || haystack.includes(q)) &&
+          (!filterDate || row.date === filterDate) &&
+          (!filterActivity || row.activity === filterActivity);
+      });
+
+      data = applySort(data);
+      displayedTimesheets = data;
+      updateAdminSummary(data);
+      renderTable("adminTimesheetList", data, true);
+    };
+
+    window.clearFilters = () => {
+      searchInput.value = "";
+      document.getElementById("filterDate").value = "";
+      document.getElementById("filterActivity").value = "";
+      document.getElementById("sortBy").value = "latest";
+      applyFiltersAndRender();
+    };
+
+    function loadTimesheets() {
+      if (unsubscribeTimesheets) unsubscribeTimesheets();
+      const ref = isAdmin()
+        ? collection(db, "timesheets")
+        : query(collection(db, "timesheets"), where("userEmail", "==", currentUserEmail));
+
+      unsubscribeTimesheets = onSnapshot(ref, snapshot => {
+        allTimesheets = [];
+        snapshot.forEach(item => allTimesheets.push(item.data()));
+        applyFiltersAndRender();
+      });
+    }
+
+    window.login = async () => {
+      const email = document.getElementById("loginEmail").value.trim().toLowerCase();
+      const password = document.getElementById("loginPass").value;
+
+      if (!email || !password) {
+        setLoginStatus("Please enter both email and password.", "error");
+        return;
+      }
+
+      try {
+        setLoginLoading(true);
+        setLoginStatus("Checking your access...", "success");
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (error) {
+        setLoginStatus(error.message || "Login failed.", "error");
+        setLoginLoading(false);
+      }
+    };
+
+    window.logout = async () => {
+      if (unsubscribeTimesheets) {
+        unsubscribeTimesheets();
+        unsubscribeTimesheets = null;
+      }
+      await signOut(auth);
+    };
+
+    window.exportExcel = () => {
+      const formatted = displayedTimesheets.map((row, index) => ({
+        "Sl. No.": index + 1,
+        "User": row.userName,
+        "Email": row.userEmail,
+        "Date": row.date,
+        "Start Time": row.startTime,
+        "End Time": row.endTime,
+        "Duration": formatDuration(row.durationMinutes),
+        "Duration Minutes": row.durationMinutes,
+        "Activity": row.activity,
+        "Report": row.report,
+        "Submitted At": row.submittedAt
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(formatted);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Timesheet Report");
+      XLSX.writeFile(wb, "Timesheet_Report.xlsx");
+    };
+
+    window.exportPDF = () => {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF("landscape");
+      const headers = [["Sl.No", "User", "Email", "Date", "Start", "End", "Duration", "Activity", "Report", "Submitted"]];
+      const rows = displayedTimesheets.map((row, index) => [
+        index + 1,
+        row.userName || "",
+        row.userEmail || "",
+        row.date || "",
+        row.startTime || "",
+        row.endTime || "",
+        formatDuration(row.durationMinutes),
+        row.activity || "",
+        row.report || "",
+        row.submittedAt || ""
+      ]);
+
+      pdf.autoTable({ head: headers, body: rows, styles: { fontSize: 8 } });
+      pdf.save("Timesheet_Report.pdf");
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+      try {
+        if (!user) {
+          currentUserEmail = "";
+          currentUserName = "";
+          currentRole = "";
+          allTimesheets = [];
+          displayedTimesheets = [];
+
+          if (unsubscribeTimesheets) unsubscribeTimesheets();
+          unsubscribeTimesheets = null;
+
+          loginDiv.classList.remove("hidden");
+          appDiv.classList.add("hidden");
+          userPanel.classList.add("hidden");
+          historyPanel.classList.add("hidden");
+          adminPanel.classList.add("hidden");
+          navUser.classList.add("hidden");
+          navRole.classList.add("hidden");
+          navLogout.classList.add("hidden");
+          setLoginLoading(false);
+          return;
+        }
+
+        currentUserEmail = user.email.toLowerCase();
+        const roleData = await getRoleByEmail(currentUserEmail);
+
+        if (!roleData) {
+          setLoginStatus("Role record not found in Firestore.", "error");
+          await signOut(auth);
+          return;
+        }
+
+        if (roleData.active !== true) {
+          setLoginStatus("This account is inactive.", "error");
+          await signOut(auth);
+          return;
+        }
+
+        currentRole = String(roleData.role || "").toLowerCase();
+        currentUserName = roleData.name || user.displayName || currentUserEmail;
+
+        if (currentRole !== "admin" && currentRole !== "user") {
+          setLoginStatus("Invalid role configured. Use admin or user.", "error");
+          await signOut(auth);
+          return;
+        }
+
+        navUser.textContent = currentUserName;
+        navRole.textContent = currentRole === "admin" ? "Admin Workspace" : "User Workspace";
+        navUser.classList.remove("hidden");
+        navRole.classList.remove("hidden");
+        navLogout.classList.remove("hidden");
+
+        loginDiv.classList.add("hidden");
+        appDiv.classList.remove("hidden");
+        userPanel.classList.toggle("hidden", isAdmin());
+        historyPanel.classList.toggle("hidden", isAdmin());
+        adminPanel.classList.toggle("hidden", !isAdmin());
+
+        setDateLimits();
+        loadTimesheets();
+        setLoginLoading(false);
+        setLoginStatus("");
+      } catch (error) {
+        setLoginStatus(error.message || "Login flow failed.", "error");
+        setLoginLoading(false);
+      }
+    });
+
+    ["loginEmail", "loginPass"].forEach((id) => {
+      document.getElementById(id).addEventListener("keydown", (event) => {
+        if (event.key === "Enter") login();
+      });
+    });
+
+    searchInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") applyFiltersAndRender();
+    });
+
+    resetTimesheetForm();
+  </script>
+</body>
+</html>

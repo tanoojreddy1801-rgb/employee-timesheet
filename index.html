@@ -507,7 +507,7 @@
               <h2>Attendance</h2>
               <div class="subtle">Mark attendance only from within 200 meters of the approved office coordinates.</div>
             </div>
-            <div class="chip">Approved Location: Kubera Solutions, HAL Market</div>
+            <div class="chip"></div>
           </div>
 
           <div class="summary-grid">
@@ -534,7 +534,8 @@
           </div>
 
           <div class="action-row">
-            <button id="attendanceBtn" class="btn-primary" onclick="markAttendance()">Mark Attendance</button>
+            <button id="attendanceBtn" class="btn-primary" onclick="markAttendance()">Mark In Attendance</button>
+            <button id="attendanceOutBtn" class="btn-secondary" onclick="markOutAttendance()">Mark Out Attendance</button>
           </div>
           <div id="attendanceStatus" class="status-message"></div>
         </div>
@@ -813,6 +814,10 @@
       return `https://www.google.com/maps?q=${encodeURIComponent(latitude + "," + longitude)}`;
     }
 
+    function getDailyAttendanceId(date = getTodayISOFromIST()) {
+      return `${currentUserEmail}_${date}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+    }
+
     function getLocationOnce() {
       return new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
@@ -934,7 +939,7 @@
         const expiresAt = new Date(now.getTime() + ATTENDANCE_RETENTION_DAYS * 24 * 60 * 60 * 1000);
         const date = getTodayISOFromIST();
         const time = getISTTimeOnly();
-        const id = `${currentUserEmail}_${date}_${now.getTime()}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+        const id = getDailyAttendanceId(date);
 
         await setDoc(doc(db, "attendance", id), {
           id,
@@ -942,20 +947,21 @@
           userEmail: currentUserEmail,
           userName: currentUserName || currentUserEmail,
           date,
-          time,
-          markedAt: getISTTime(),
-          markedAtMillis: now.getTime(),
-          latitude,
-          longitude,
-          accuracyMeters: Number(accuracy.toFixed(2)),
+          markInTime: time,
+          markInAt: getISTTime(),
+          markInAtMillis: now.getTime(),
+          markInLatitude: latitude,
+          markInLongitude: longitude,
+          markInAccuracyMeters: Number(accuracy.toFixed(2)),
+          markInDistanceMeters: Number(distanceMeters.toFixed(2)),
+          markInMapUrl: getGoogleMapsUrl(latitude, longitude),
+          status: "open",
           officeLatitude: OFFICE_LATITUDE,
           officeLongitude: OFFICE_LONGITUDE,
           allowedRadiusMeters: ATTENDANCE_RADIUS_METERS,
-          distanceMeters: Number(distanceMeters.toFixed(2)),
-          mapUrl: getGoogleMapsUrl(latitude, longitude),
           expiresAt,
           expiresAtMillis: expiresAt.getTime()
-        });
+        }, { merge: true });
 
         setAttendanceStatus(
           `Attendance marked successfully. Distance from office point: ${Math.round(distanceMeters)} meters.`,
@@ -968,7 +974,71 @@
         setAttendanceStatus(message, "error");
       } finally {
         btn.disabled = false;
-        btn.textContent = "Mark Attendance";
+        btn.textContent = "Mark In Attendance";
+      }
+    };
+
+    window.markOutAttendance = async () => {
+      const btn = document.getElementById("attendanceOutBtn");
+      try {
+        btn.disabled = true;
+        btn.textContent = "Checking Location...";
+        setAttendanceStatus("Please allow location access to mark out.", "success");
+
+        const date = getTodayISOFromIST();
+        const attendanceRef = doc(db, "attendance", getDailyAttendanceId(date));
+        const attendanceSnap = await getDoc(attendanceRef);
+
+        if (!attendanceSnap.exists() || !attendanceSnap.data().markInAt) {
+          setAttendanceStatus("Please mark in attendance first before marking out.", "error");
+          return;
+        }
+
+        if (attendanceSnap.data().markOutAt) {
+          setAttendanceStatus("Mark out attendance is already recorded for today.", "error");
+          return;
+        }
+
+        const position = await getLocationOnce();
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        const accuracy = position.coords.accuracy;
+        const distanceMeters = getDistanceMeters(latitude, longitude, OFFICE_LATITUDE, OFFICE_LONGITUDE);
+
+        if (distanceMeters > ATTENDANCE_RADIUS_METERS) {
+          setAttendanceStatus(
+            `Mark out denied. You are ${Math.round(distanceMeters)} meters away from the approved location.`,
+            "error"
+          );
+          return;
+        }
+
+        const now = new Date();
+        await setDoc(attendanceRef, {
+          markOutTime: getISTTimeOnly(),
+          markOutAt: getISTTime(),
+          markOutAtMillis: now.getTime(),
+          markOutLatitude: latitude,
+          markOutLongitude: longitude,
+          markOutAccuracyMeters: Number(accuracy.toFixed(2)),
+          markOutDistanceMeters: Number(distanceMeters.toFixed(2)),
+          markOutMapUrl: getGoogleMapsUrl(latitude, longitude),
+          status: "closed",
+          updatedAtMillis: now.getTime()
+        }, { merge: true });
+
+        setAttendanceStatus(
+          `Mark out recorded successfully. Distance from office point: ${Math.round(distanceMeters)} meters.`,
+          "success"
+        );
+      } catch (error) {
+        const message = error.code === "permission-denied"
+          ? "Firebase permission denied. Update attendance rules to allow users to read/update their own attendance."
+          : (error.message || "Unable to mark out attendance.");
+        setAttendanceStatus(message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Mark Out Attendance";
       }
     };
 
@@ -1095,7 +1165,7 @@
       if (!isAdmin()) return;
 
       const rows = getActiveAttendanceRows().sort((a, b) =>
-        (Number(b.markedAtMillis) || 0) - (Number(a.markedAtMillis) || 0)
+        (Number(b.markInAtMillis) || Number(b.markedAtMillis) || 0) - (Number(a.markInAtMillis) || Number(a.markedAtMillis) || 0)
       );
       document.getElementById("attendanceCountChip").textContent = `${rows.length} Attendance Logs`;
 
@@ -1113,12 +1183,15 @@
                 <th>User</th>
                 <th>Email</th>
                 <th>Date</th>
-                <th>Time</th>
-                <th>Latitude</th>
-                <th>Longitude</th>
-                <th>Distance</th>
-                <th>Accuracy</th>
-                <th>Map</th>
+                <th>Mark In</th>
+                <th>In Coordinates</th>
+                <th>In Distance</th>
+                <th>In Map</th>
+                <th>Mark Out</th>
+                <th>Out Coordinates</th>
+                <th>Out Distance</th>
+                <th>Out Map</th>
+                <th>Status</th>
                 <th>Expires</th>
               </tr>
             </thead>
@@ -1128,12 +1201,15 @@
                   <td>${escapeHtml(row.userName || "-")}</td>
                   <td>${escapeHtml(row.userEmail || "-")}</td>
                   <td>${escapeHtml(row.date || "-")}</td>
-                  <td>${escapeHtml(row.time || "-")}</td>
-                  <td>${escapeHtml(row.latitude || "-")}</td>
-                  <td>${escapeHtml(row.longitude || "-")}</td>
-                  <td>${escapeHtml(Math.round(Number(row.distanceMeters) || 0))} m</td>
-                  <td>${escapeHtml(Math.round(Number(row.accuracyMeters) || 0))} m</td>
-                  <td><a class="map-link" href="${escapeHtml(row.mapUrl || getGoogleMapsUrl(row.latitude, row.longitude))}" target="_blank" rel="noopener">Open Map</a></td>
+                  <td>${escapeHtml(row.markInTime || row.time || "-")}</td>
+                  <td>${escapeHtml(row.markInLatitude || row.latitude || "-")}, ${escapeHtml(row.markInLongitude || row.longitude || "-")}</td>
+                  <td>${escapeHtml(Math.round(Number(row.markInDistanceMeters ?? row.distanceMeters) || 0))} m</td>
+                  <td><a class="map-link" href="${escapeHtml(row.markInMapUrl || row.mapUrl || getGoogleMapsUrl(row.markInLatitude || row.latitude, row.markInLongitude || row.longitude))}" target="_blank" rel="noopener">Open In</a></td>
+                  <td>${escapeHtml(row.markOutTime || "-")}</td>
+                  <td>${row.markOutLatitude ? `${escapeHtml(row.markOutLatitude)}, ${escapeHtml(row.markOutLongitude)}` : "-"}</td>
+                  <td>${row.markOutDistanceMeters ? `${escapeHtml(Math.round(Number(row.markOutDistanceMeters)))} m` : "-"}</td>
+                  <td>${row.markOutMapUrl ? `<a class="map-link" href="${escapeHtml(row.markOutMapUrl)}" target="_blank" rel="noopener">Open Out</a>` : "-"}</td>
+                  <td>${escapeHtml(row.status || (row.markOutAt ? "closed" : "open"))}</td>
                   <td>${escapeHtml(row.expiresAt ? new Date(row.expiresAt.seconds ? row.expiresAt.seconds * 1000 : row.expiresAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "-")}</td>
                 </tr>
               `).join("")}

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TIMO</title>
+  <title>V.I.P.E.R Timesheet</title>
 
   <style>
     :root {
@@ -430,6 +430,16 @@
       text-align: right;
     }
 
+    .map-link {
+      color: #4d7fe5;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .map-link:hover {
+      text-decoration: underline;
+    }
+
     .hidden { display: none !important; }
 
     @media (max-width: 1180px) {
@@ -460,8 +470,8 @@
       <div class="brand">
         <img src="https://raw.githubusercontent.com/invinciblescotax-rex/client-tracker-tool/main/whiper.jpg" class="brand-mark" alt="V.I.P.E.R logo" />
         <div class="brand-text">
-          <span class="logo">T.I.M.O</span>
-          <span class="logo-sub">Tracking, Insights, Management & Optimization</span>
+          <span class="logo">V.I.P.E.R</span>
+          <span class="logo-sub">Timesheet Activity Records</span>
         </div>
       </div>
 
@@ -491,6 +501,44 @@
       </div>
 
       <div id="appDiv" class="hidden">
+        <div id="attendancePanel" class="panel hidden">
+          <div class="section-head">
+            <div class="section-head-left">
+              <h2>Attendance</h2>
+              <div class="subtle">Mark attendance only from within 200 meters of the approved office coordinates.</div>
+            </div>
+            <div class="chip">12.961008904288512, 77.66556954232873</div>
+          </div>
+
+          <div class="summary-grid">
+            <div class="summary-card">
+              <div class="summary-label">Allowed Radius</div>
+              <div class="summary-value">200 m</div>
+              <div class="summary-note">From approved office point</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Current Date</div>
+              <div id="attendanceDate" class="summary-value" style="font-size:24px;">-</div>
+              <div class="summary-note">Asia/Kolkata</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Current Time</div>
+              <div id="attendanceTime" class="summary-value" style="font-size:24px;">-</div>
+              <div class="summary-note">Captured on submit</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Retention</div>
+              <div class="summary-value">7 days</div>
+              <div class="summary-note">Attendance logs expire automatically</div>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button id="attendanceBtn" class="btn-primary" onclick="markAttendance()">Mark Attendance</button>
+          </div>
+          <div id="attendanceStatus" class="status-message"></div>
+        </div>
+
         <div id="userPanel" class="panel hidden">
           <div class="section-head">
             <div class="section-head-left">
@@ -533,6 +581,16 @@
         </div>
 
         <div id="adminPanel" class="panel hidden">
+          <div class="section-head">
+            <div class="section-head-left">
+              <h2>Admin Attendance Dashboard</h2>
+              <div class="subtle">Review user attendance with marked date, time, coordinates, distance from approved point, and Google Maps links.</div>
+            </div>
+            <div class="chip" id="attendanceCountChip">0 Attendance Logs</div>
+          </div>
+
+          <div id="adminAttendanceList"></div>
+
           <div class="section-head">
             <div class="section-head-left">
               <h2>Admin Timesheet Dashboard</h2>
@@ -618,6 +676,7 @@
       doc,
       getDoc,
       setDoc,
+      deleteDoc,
       onSnapshot,
       collection,
       query,
@@ -636,6 +695,7 @@
 
     const loginDiv = document.getElementById("loginDiv");
     const appDiv = document.getElementById("appDiv");
+    const attendancePanel = document.getElementById("attendancePanel");
     const userPanel = document.getElementById("userPanel");
     const historyPanel = document.getElementById("historyPanel");
     const adminPanel = document.getElementById("adminPanel");
@@ -648,15 +708,23 @@
     const searchInput = document.getElementById("search");
     const userSelect = document.getElementById("userSelect");
     const individualUserPanel = document.getElementById("individualUserPanel");
+    const attendanceStatus = document.getElementById("attendanceStatus");
 
     const SKS_REPORT_TEXT = "Report to Thanmayi or, Tanooj regarding this period";
+    const OFFICE_LATITUDE = 12.961008904288512;
+    const OFFICE_LONGITUDE = 77.66556954232873;
+    const ATTENDANCE_RADIUS_METERS = 200;
+    const ATTENDANCE_RETENTION_DAYS = 7;
+    let currentUserId = "";
     let currentUserEmail = "";
     let currentUserName = "";
     let currentRole = "";
     let allTimesheets = [];
     let displayedTimesheets = [];
+    let allAttendance = [];
     let selectedUserEmail = "";
     let unsubscribeTimesheets = null;
+    let unsubscribeAttendance = null;
 
     function setLoginStatus(message = "", type = "") {
       loginStatus.textContent = message;
@@ -666,6 +734,11 @@
     function setEntryStatus(message = "", type = "") {
       entryStatus.textContent = message;
       entryStatus.className = "status-message" + (type ? ` ${type}` : "");
+    }
+
+    function setAttendanceStatus(message = "", type = "") {
+      attendanceStatus.textContent = message;
+      attendanceStatus.className = "status-message" + (type ? ` ${type}` : "");
     }
 
     function setLoginLoading(isLoading) {
@@ -699,6 +772,60 @@
 
     function getISTTime() {
       return new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+    }
+
+    function getISTTimeOnly() {
+      return new Date().toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }
+
+    function updateAttendanceClock() {
+      const dateEl = document.getElementById("attendanceDate");
+      const timeEl = document.getElementById("attendanceTime");
+      if (!dateEl || !timeEl) return;
+      dateEl.textContent = getTodayISOFromIST();
+      timeEl.textContent = getISTTimeOnly();
+    }
+
+    function degreesToRadians(value) {
+      return value * Math.PI / 180;
+    }
+
+    function getDistanceMeters(lat1, lon1, lat2, lon2) {
+      const earthRadiusMeters = 6371000;
+      const deltaLat = degreesToRadians(lat2 - lat1);
+      const deltaLon = degreesToRadians(lon2 - lon1);
+      const a =
+        Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+        Math.cos(degreesToRadians(lat1)) *
+        Math.cos(degreesToRadians(lat2)) *
+        Math.sin(deltaLon / 2) *
+        Math.sin(deltaLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return earthRadiusMeters * c;
+    }
+
+    function getGoogleMapsUrl(latitude, longitude) {
+      return `https://www.google.com/maps?q=${encodeURIComponent(latitude + "," + longitude)}`;
+    }
+
+    function getLocationOnce() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error("Location is not available in this browser."));
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        });
+      });
     }
 
     function escapeHtml(value) {
@@ -782,6 +909,69 @@
       if (!keepStatus) setEntryStatus("");
     };
 
+    window.markAttendance = async () => {
+      const btn = document.getElementById("attendanceBtn");
+      try {
+        btn.disabled = true;
+        btn.textContent = "Checking Location...";
+        setAttendanceStatus("Please allow location access when the browser asks.", "success");
+
+        const position = await getLocationOnce();
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        const accuracy = position.coords.accuracy;
+        const distanceMeters = getDistanceMeters(latitude, longitude, OFFICE_LATITUDE, OFFICE_LONGITUDE);
+
+        if (distanceMeters > ATTENDANCE_RADIUS_METERS) {
+          setAttendanceStatus(
+            `Attendance denied. You are ${Math.round(distanceMeters)} meters away from the approved location.`,
+            "error"
+          );
+          return;
+        }
+
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + ATTENDANCE_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+        const date = getTodayISOFromIST();
+        const time = getISTTimeOnly();
+        const id = `${currentUserEmail}_${date}_${now.getTime()}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+
+        await setDoc(doc(db, "attendance", id), {
+          id,
+          userId: currentUserId,
+          userEmail: currentUserEmail,
+          userName: currentUserName || currentUserEmail,
+          date,
+          time,
+          markedAt: getISTTime(),
+          markedAtMillis: now.getTime(),
+          latitude,
+          longitude,
+          accuracyMeters: Number(accuracy.toFixed(2)),
+          officeLatitude: OFFICE_LATITUDE,
+          officeLongitude: OFFICE_LONGITUDE,
+          allowedRadiusMeters: ATTENDANCE_RADIUS_METERS,
+          distanceMeters: Number(distanceMeters.toFixed(2)),
+          mapUrl: getGoogleMapsUrl(latitude, longitude),
+          expiresAt,
+          expiresAtMillis: expiresAt.getTime()
+        });
+
+        setAttendanceStatus(
+          `Attendance marked successfully. Distance from office point: ${Math.round(distanceMeters)} meters.`,
+          "success"
+        );
+      } catch (error) {
+        const message = error.code === "permission-denied"
+          ? "Firebase permission denied. Add attendance rules in Firestore, then try again."
+          : (error.message || "Unable to mark attendance.");
+        setAttendanceStatus(message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Mark Attendance";
+      }
+    };
+
     function validateTimesheet() {
       const date = getInputValue("entryDate");
       const startTime = getInputValue("startTime");
@@ -817,6 +1007,7 @@
 
       const payload = {
         id,
+        userId: currentUserId,
         userEmail: currentUserEmail,
         userName: currentUserName || currentUserEmail,
         date: data.date,
@@ -835,7 +1026,10 @@
         setEntryStatus("Timesheet submitted successfully.", "success");
         resetTimesheetForm(true);
       } catch (error) {
-        setEntryStatus(error.message || "Unable to submit timesheet.", "error");
+        const message = error.code === "permission-denied"
+          ? "Firebase permission denied. Update Firestore rules for the timesheets collection, then submit again."
+          : (error.message || "Unable to submit timesheet.");
+        setEntryStatus(message, "error");
       } finally {
         document.getElementById("submitBtn").disabled = false;
       }
@@ -882,6 +1076,71 @@
 
     function renderTable(targetId, data, includeUser) {
       document.getElementById(targetId).innerHTML = buildTableHtml(data, includeUser);
+    }
+
+    function getActiveAttendanceRows() {
+      const now = Date.now();
+      return allAttendance.filter(row => !row.expiresAtMillis || Number(row.expiresAtMillis) > now);
+    }
+
+    async function deleteExpiredAttendance() {
+      if (!isAdmin()) return;
+
+      const now = Date.now();
+      const expiredRows = allAttendance.filter(row => row.id && Number(row.expiresAtMillis) <= now);
+      await Promise.all(expiredRows.map(row => deleteDoc(doc(db, "attendance", row.id)).catch(() => null)));
+    }
+
+    function renderAttendanceTable() {
+      if (!isAdmin()) return;
+
+      const rows = getActiveAttendanceRows().sort((a, b) =>
+        (Number(b.markedAtMillis) || 0) - (Number(a.markedAtMillis) || 0)
+      );
+      document.getElementById("attendanceCountChip").textContent = `${rows.length} Attendance Logs`;
+
+      if (!rows.length) {
+        document.getElementById("adminAttendanceList").innerHTML =
+          `<div class="empty-state">No active attendance logs found. Logs older than one week are hidden and cleaned up.</div>`;
+        return;
+      }
+
+      document.getElementById("adminAttendanceList").innerHTML = `
+        <div class="list-table-wrap">
+          <table class="list-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Email</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Latitude</th>
+                <th>Longitude</th>
+                <th>Distance</th>
+                <th>Accuracy</th>
+                <th>Map</th>
+                <th>Expires</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(row => `
+                <tr>
+                  <td>${escapeHtml(row.userName || "-")}</td>
+                  <td>${escapeHtml(row.userEmail || "-")}</td>
+                  <td>${escapeHtml(row.date || "-")}</td>
+                  <td>${escapeHtml(row.time || "-")}</td>
+                  <td>${escapeHtml(row.latitude || "-")}</td>
+                  <td>${escapeHtml(row.longitude || "-")}</td>
+                  <td>${escapeHtml(Math.round(Number(row.distanceMeters) || 0))} m</td>
+                  <td>${escapeHtml(Math.round(Number(row.accuracyMeters) || 0))} m</td>
+                  <td><a class="map-link" href="${escapeHtml(row.mapUrl || getGoogleMapsUrl(row.latitude, row.longitude))}" target="_blank" rel="noopener">Open Map</a></td>
+                  <td>${escapeHtml(row.expiresAt ? new Date(row.expiresAt.seconds ? row.expiresAt.seconds * 1000 : row.expiresAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "-")}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
     }
 
     function updateAdminSummary(data) {
@@ -1095,6 +1354,22 @@
       });
     }
 
+    function loadAttendance() {
+      if (unsubscribeAttendance) unsubscribeAttendance();
+
+      if (!isAdmin()) {
+        allAttendance = [];
+        return;
+      }
+
+      unsubscribeAttendance = onSnapshot(collection(db, "attendance"), async snapshot => {
+        allAttendance = [];
+        snapshot.forEach(item => allAttendance.push(item.data()));
+        renderAttendanceTable();
+        await deleteExpiredAttendance();
+      });
+    }
+
     window.login = async () => {
       const email = document.getElementById("loginEmail").value.trim().toLowerCase();
       const password = document.getElementById("loginPass").value;
@@ -1118,6 +1393,10 @@
       if (unsubscribeTimesheets) {
         unsubscribeTimesheets();
         unsubscribeTimesheets = null;
+      }
+      if (unsubscribeAttendance) {
+        unsubscribeAttendance();
+        unsubscribeAttendance = null;
       }
       await signOut(auth);
     };
@@ -1168,17 +1447,22 @@
       try {
         if (!user) {
           currentUserEmail = "";
+          currentUserId = "";
           currentUserName = "";
           currentRole = "";
           allTimesheets = [];
           displayedTimesheets = [];
+          allAttendance = [];
           selectedUserEmail = "";
 
           if (unsubscribeTimesheets) unsubscribeTimesheets();
           unsubscribeTimesheets = null;
+          if (unsubscribeAttendance) unsubscribeAttendance();
+          unsubscribeAttendance = null;
 
           loginDiv.classList.remove("hidden");
           appDiv.classList.add("hidden");
+          attendancePanel.classList.add("hidden");
           userPanel.classList.add("hidden");
           historyPanel.classList.add("hidden");
           adminPanel.classList.add("hidden");
@@ -1190,6 +1474,7 @@
         }
 
         currentUserEmail = user.email.toLowerCase();
+        currentUserId = user.uid;
         const roleData = await getRoleByEmail(currentUserEmail);
 
         if (!roleData) {
@@ -1221,12 +1506,15 @@
 
         loginDiv.classList.add("hidden");
         appDiv.classList.remove("hidden");
+        attendancePanel.classList.toggle("hidden", isAdmin());
         userPanel.classList.toggle("hidden", isAdmin());
         historyPanel.classList.toggle("hidden", isAdmin());
         adminPanel.classList.toggle("hidden", !isAdmin());
 
         setDateLimits();
+        updateAttendanceClock();
         loadTimesheets();
+        loadAttendance();
         setLoginLoading(false);
         setLoginStatus("");
       } catch (error) {
